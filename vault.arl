@@ -1,0 +1,102 @@
+archetype vault(owner : address) with metadata ""
+
+import "tkUSD.arl"
+
+/* OWNERSHIP TRANSFER ------------------------------------------------------- */
+
+variable owner_candidate : option<address> = none
+
+entry declare_ownership(candidate : address) {
+  no transfer
+  called by owner
+  effect {
+    owner_candidate := some(candidate);
+  }
+}
+
+entry claim_ownership() {
+  no transfer
+  require {
+    ownership_r1: (owner_candidate ? the = caller : false) otherwise "INVALID_CALLER"
+  }
+  effect {
+    owner := caller;
+    owner_candidate := none
+  }
+}
+
+/* STORAGE ---------------------------------------------------------------- */
+
+variable kUSD_Address : address= @KT1A6on6nCzD9Hf4Wi3yMpZdkXmyx8j23RXd
+variable kUSD_ID : nat=0
+variable tkUSD_Address : address = @KT1UXgSCZZaegjLdNuuETVHmDs1snDGQUHde
+variable tkUSD_ID : nat = 0
+
+/* PARAMETERS ------------------------------------------------------------- */
+
+record transfer_destination {
+  to_dest           : address;
+  token_id_dest     : nat;
+  token_amount_dest : nat
+} as ((%to_, (token_id, amount)))
+
+record transfer_param {
+  tp_from : address;
+  tp_txs  : list<transfer_destination>;
+} as ((%from_, %txs))
+
+/* FUNCTIONS ------------------------------------------------------------- */
+
+entry USDDeposit (amount: nat) {
+  effect {    
+    const txsReceive: list<transfer_destination> = [{self_address; kUSD_ID; amount}];
+    const txssReceive: list<transfer_param> = [{caller; txsReceive}];
+    transfer 0tz to kUSD_Address
+      call %transfer<list<transfer_param>>(
+        (
+          txssReceive 
+        )
+      );
+    transfer 0tz to entry tkUSD(tkUSD_Address).mint((caller, amount))
+  }
+}
+
+entry USDWithdraw (amount: nat) {
+  effect {
+    const txsReceive: list<transfer_destination> = [{self_address; tkUSD_ID; amount}];
+    const txssReceive: list<transfer_param> = [{caller; txsReceive}];
+    transfer 0tz to entry tkUSD(tkUSD_Address).%transfer(
+      (
+        txssReceive
+      )
+    );
+    const txsSendBack: list<transfer_destination> = [{caller; kUSD_ID; amount}];
+    const txssSendBack: list<transfer_param> = [{self_address; txsSendBack}];
+    transfer 0tz to kUSD_Address
+      call %transfer<list<transfer_param>>(
+        (
+          txssSendBack
+        )
+      );
+      transfer 0tz to entry tkUSD(tkUSD_Address).burn(amount)
+  }
+}
+
+entry updatebound(boundAddress: address, id: nat){
+  no transfer
+  called by owner
+  effect{
+  tkUSD_Address:=boundAddress;
+  tkUSD_ID:=id;
+  
+  }
+}
+
+entry updateFiat(fiatAddress: address, id: nat){
+  no transfer
+  called by owner 
+  effect{
+  kUSD_Address:=fiatAddress;
+  kUSD_ID:=id;
+  }
+}
