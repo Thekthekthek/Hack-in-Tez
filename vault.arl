@@ -49,12 +49,12 @@ record transfer_param {
 
 entry USDDeposit (amount: nat) {
   effect {    
-    const txsReceive: list<transfer_destination> = [{self_address; kUSD_ID; amount}];
-    const txssReceive: list<transfer_param> = [{caller; txsReceive}];
+    const transaction_material: list<transfer_destination> = [{self_address; kUSD_ID; amount}];
+    const transaction_pack: list<transfer_param> = [{caller; transaction_material}];
     transfer 0tz to kUSD_Address
       call %transfer<list<transfer_param>>(
         (
-          txssReceive 
+          transaction_pack 
         )
       );
     transfer 0tz to entry tkUSD(tkUSD_Address).mint((caller, amount))
@@ -63,19 +63,19 @@ entry USDDeposit (amount: nat) {
 
 entry USDWithdraw (amount: nat) {
   effect {
-    const txsReceive: list<transfer_destination> = [{self_address; tkUSD_ID; amount}];
-    const txssReceive: list<transfer_param> = [{caller; txsReceive}];
+    const transaction_material: list<transfer_destination> = [{self_address; tkUSD_ID; amount}];
+    const transaction_pack: list<transfer_param> = [{caller; transaction_material}];
     transfer 0tz to entry tkUSD(tkUSD_Address).%transfer(
       (
-        txssReceive
+        transaction_pack
       )
     );
-    const txsSendBack: list<transfer_destination> = [{caller; kUSD_ID; amount}];
-    const txssSendBack: list<transfer_param> = [{self_address; txsSendBack}];
+    const transaction_material: list<transfer_destination> = [{caller; kUSD_ID; amount}];
+    const transaction_pack: list<transfer_param> = [{self_address; transaction_material}];
     transfer 0tz to kUSD_Address
       call %transfer<list<transfer_param>>(
         (
-          txssSendBack
+          transaction_pack
         )
       );
       transfer 0tz to entry tkUSD(tkUSD_Address).burn(amount)
@@ -86,9 +86,8 @@ entry updatebound(boundAddress: address, id: nat){
   no transfer
   called by owner
   effect{
-  tkUSD_Address:=boundAddress;
-  tkUSD_ID:=id;
-  
+    tkUSD_Address:=boundAddress;
+    tkUSD_ID:=id;
   }
 }
 
@@ -96,7 +95,7 @@ entry updateFiat(fiatAddress: address, id: nat){
   no transfer
   called by owner 
   effect{
-  kUSD_Address:=fiatAddress;
-  kUSD_ID:=id;
+    kUSD_Address:=fiatAddress;
+    kUSD_ID:=id;
   }
 }
